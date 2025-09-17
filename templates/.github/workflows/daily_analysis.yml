@@ -1,0 +1,41 @@
+name: Daily Nuclear Analysis
+
+on:
+  # Script in execution every day at 05:00 UTC (07:00 in Italy with daylight saving time)
+  schedule:
+    - cron: '0 5 * * *'
+  # Manual trigger from GitHub Actions page
+  workflow_dispatch:
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repository
+        uses: actions/checkout@v4
+
+      - name: Setup di Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Installazione delle dipendenze
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Esecuzione dello script di analisi
+        # Pass credentials as environment variables
+        # which will be written to config files in the next step
+        env:
+          TERNA_CLIENT_ID: ${{ secrets.TERNA_CLIENT_ID }}
+          TERNA_CLIENT_SECRET: ${{ secrets.TERNA_CLIENT_SECRET }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          # Creiamo i file di configurazione al volo dai secrets
+          echo "CLIENT_ID = '${TERNA_CLIENT_ID}'" > config.py
+          echo "CLIENT_SECRET = '${TERNA_CLIENT_SECRET}'" >> config.py
+          echo '${FIREBASE_SERVICE_ACCOUNT}' > serviceAccountKey.json
+
+          # Eseguiamo lo script
+          python3 nuclear_analyzer.py
