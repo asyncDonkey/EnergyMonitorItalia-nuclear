@@ -1,4 +1,4 @@
-name: Esegui Analisi Energetica Giornaliera
+name: Daily Energy Analysis
 
 on:
   schedule:
@@ -9,31 +9,31 @@ jobs:
   run-analysis:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del repository
+      - name: Repo Checkout
         uses: actions/checkout@v4
 
-      - name: Setup di Python 3.11
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Installazione delle dipendenze
+      - name: Dependancies Installation
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Esecuzione dello script di analisi
+      - name: Analysis script execution
         env:
           TERNA_CLIENT_ID: ${{ secrets.TERNA_CLIENT_ID }}
           TERNA_CLIENT_SECRET: ${{ secrets.TERNA_CLIENT_SECRET }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }} # <-- NUOVO SECRET
         run: |
-          # Creiamo i file di configurazione al volo dai secrets
+          # Create config files
           echo "CLIENT_ID = '${TERNA_CLIENT_ID}'" > config.py
           echo "CLIENT_SECRET = '${TERNA_CLIENT_SECRET}'" >> config.py
           echo "ENTSOE_API_TOKEN = '${ENTSOE_API_TOKEN}'" >> config.py # <-- NUOVA RIGA
           echo '${FIREBASE_SERVICE_ACCOUNT}' > serviceAccountKey.json
           
-          # Eseguiamo lo script
+          # Execute the script
           python3 nuclear_analyzer.py

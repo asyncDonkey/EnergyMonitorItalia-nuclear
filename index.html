@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisi Nucleare Italia</title>
+    <link rel="stylesheet" href="public/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <span class="material-symbols-outlined">lightning_stand</span>
+            Simulazione sui Benefici del Nucleare in Italia
+        </h1>
+        <p>Analisi basata sul fabbisogno energetico nazionale del <strong id="analysis-date">--</strong> (dati Terna).</p>
+
+        <div class="kpi-container">
+             <div class="kpi-card">
+                <span class="kpi-label">Risparmio Annuale Stimato per l'Italia</span>
+                <div class="kpi-value" id="kpi-annual-saving">--</div>
+                <span class="kpi-unit">Miliardi di Euro l'anno</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Risparmio Annuale Stimato per Famiglia</span>
+                <div class="kpi-value" id="kpi-family-saving">--</div>
+                <span class="kpi-unit">Euro l'anno</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Riduzione % sul Costo Giornaliero</span>
+                <div class="kpi-value" id="kpi-percentage-saving">--</div>
+                <span class="kpi-unit">in meno sulla spesa energetica</span>
+            </div>
+        </div>
+        
+        <div class="summary-container">
+            <h2>L'Analisi in Breve</h2>
+            <p>
+                Questa analisi simula l'adozione di un mix energetico per l'Italia che includa una quota del <strong>65% di produzione da fonte nucleare</strong>.
+                Partendo da un fabbisogno giornaliero di <strong id="summary-demand">--</strong> MWh e un prezzo medio dell'energia (PUN) di 
+                <strong id="summary-pun-used">--</strong> €/MWh, il costo attuale della fornitura si attesta su 
+                <strong id="summary-actual-cost">--</strong> Milioni di Euro. Introducendo il nucleare, il costo simulato scende a 
+                <strong id="summary-sim-cost">--</strong> Milioni di Euro, generando i risparmi evidenziati sopra.
+            </p>
+        </div>
+
+        <div class="charts-container">
+            <h2>Confronto Mix Energetici</h2>
+            
+            <div class="chart-wrapper" id="italy-chart-container">
+                <h3>Mix Energetico Italiano</h3>
+                <p class="chart-description">L'Italia, priva di centrali nucleari, dipende fortemente da gas fossile e fonti rinnovabili per la sua produzione elettrica.</p>
+            </div>
+            <div class="chart-wrapper" id="france-chart-container">
+                <h3>Mix Energetico Francese</h3>
+                <p class="chart-description">La Francia rappresenta il modello di riferimento per un'economia a forte componente nucleare, con oltre il 65% dell'energia generata da questa fonte.</p>
+            </div>
+            <div class="chart-wrapper" id="spain-chart-container">
+                <h3>Mix Energetico Spagnolo</h3>
+                <p class="chart-description">La Spagna offre l'esempio di un mix energetico bilanciato, dove il nucleare (circa 20%) si affianca a una robusta presenza di rinnovabili.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="public/main.js"></script>
+</body>
+</html>

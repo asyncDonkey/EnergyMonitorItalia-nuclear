@@ -1,0 +1,184 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap');
+
+
+:root {
+    --bg-color: #f0f0f0;
+    --surface-color: #FFFFFF;
+    --primary-text-color: #222222;
+    --secondary-text-color: #555555;
+    --border-color: #DDDDDD;
+    --surface-alt-color: #F8F8F8;
+    
+    --font-body: Verdana, sans-serif;
+    --font-heading: "IBM Plex Sans", sans-serif;
+    --font-terminal: 'Source Code Pro', monospace;
+}
+
+
+body {
+    font-family: var(--font-body);
+    font-size: 16px; 
+    background-color: var(--bg-color);
+    color: var(--primary-text-color);
+    margin: 0;
+    padding: 2rem;
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    background-color: var(--surface-color);
+    padding: 2rem 3rem;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+h1 {
+    font-family: var(--font-heading);
+    color: var(--primary-text-color);
+    text-align: center;
+    font-size: 1.8rem; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+h1 .material-symbols-outlined {
+    margin-right: 0.5em;
+    font-size: 1em;
+    vertical-align: middle;
+}
+
+p {
+    line-height: 1.7;
+    max-width: 75ch;
+}
+
+
+.kpi-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin: 2.5rem 0;
+}
+
+.kpi-card {
+    background-color: var(--surface-alt-color);
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.kpi-label {
+    font-weight: bold;
+    color: var(--secondary-text-color);
+    font-size: 0.85rem; 
+}
+
+.kpi-value {
+    font-size: 2.2rem; 
+    font-weight: bold;
+    color: var(--primary-text-color);
+    margin: 0.5rem 0;
+}
+
+.kpi-unit {
+    font-size: 0.85rem; 
+    color: var(--secondary-text-color);
+}
+
+
+.summary-container {
+    margin: 3rem 0;
+    padding: 2rem;
+    background-color: var(--surface-alt-color);
+    border-top: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+    text-align: left;
+}
+
+.summary-container h2,
+.charts-container h2 {
+    font-family: var(--font-heading);
+    color: var(--primary-text-color);
+    text-align: center;
+    font-size: 1.4rem; 
+}
+
+.summary-container h2 {
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+}
+
+
+.chart-wrapper {
+    margin-top: 2rem;
+    background-color: #1e1e1e;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 1.5rem;
+    font-family: var(--font-terminal);
+    color: #f0f0f0;
+}
+
+.chart-wrapper h3 {
+    font-family: var(--font-terminal);
+    color: #00ff00;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+    margin-top: 0;
+    font-size: 1.1rem; 
+}
+
+.chart-description {
+    font-size: 0.9rem; 
+    color: #aaa;
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+    max-width: 100%;
+}
+
+.ascii-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-radius: 2px;
+}
+
+.ascii-row:hover {
+    background-color: #333;
+}
+
+.ascii-label {
+    flex-basis: 220px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.ascii-bar {
+    flex-grow: 1;
+    color: #f0f0f0;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ascii-percentage {
+    padding-left: 1rem;
+    color: #888;
+}
+
+.ascii-details {
+    display: none;
+    padding-left: 1.5rem;
+    font-size: 0.9rem; 
+    color: #aaa;
+    margin-bottom: 0.75rem;
+}
