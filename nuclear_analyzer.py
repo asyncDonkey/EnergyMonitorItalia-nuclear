@@ -4,127 +4,182 @@ import pandas as pd
 from datetime import date, timedelta
 import firebase_admin
 from firebase_admin import credentials, firestore
+from io import StringIO
+import time # Import time for a delay
+from lxml import etree
 
-# FIREBASE SETUP
+# --- SETUP FIREBASE ---
 try:
     cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
     db = firestore.client()
-    print("✅ Connessione a Firestore stabilita.")
+    print("Connection to Firestore established.")
 except Exception as e:
-    print("❌ ERRORE: Assicurati che 'serviceAccountKey.json' sia presente e corretto.")
+    print(f"ERROR: Please ensure 'serviceAccountKey.json' is present and correct.")
     db = None
 
-# SIMULATION PARAMETERS
+# --- CONSTANTS ---
 COSTO_MEDIO_PUN_ITALIA_EUR_MWh = 110.0
 COSTO_NUCLEARE_FRANCIA_EUR_MWh = 70.0
 PERCENTUALE_NUCLEARE_NEL_MIX = 0.65
 
-# TERNA API FUNCTIONS
+# --- API FUNCTIONS ---
 def get_access_token(client_id, client_secret):
     url = "https://api.terna.it/transparency/oauth/accessToken"
     payload = {'grant_type': 'client_credentials', 'client_id': client_id, 'client_secret': client_secret}
-    print("1. Ottenimento token di accesso Terna...")
+    print("1. Obtaining a Terna access token...")
     response = requests.post(url, data=payload)
     response.raise_for_status()
-    print("✅ Token ottenuto!")
+    print("Terna token obtained!")
     return response.json().get('access_token')
 
-def get_total_load_for_yesterday(access_token):
+def get_terna_data_for_yesterday(access_token):
     data_url = "https://api.terna.it/load/v2.0/total-load"
     yesterday = date.today() - timedelta(days=1)
     date_str = yesterday.strftime('%d/%m/%Y')
     params = {'dateFrom': date_str, 'dateTo': date_str}
-    headers = {'Authorization': f'Bearer {access_token}'}
-    print(f"2. Download del fabbisogno energetico italiano per il {date_str}...")
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Ocp-Apim-Subscription-Key': config.CLIENT_ID
+    }
+    print(f"2. Download Terna data for {date_str}...")
     response = requests.get(data_url, headers=headers, params=params)
     response.raise_for_status()
-    records = response.json().get('total_load', [])
-    print("✅ Dati scaricati!")
-    return records
+    print("Terna Data doownloaded!")
+    return response.json().get('total_load', [])
 
-# DB AND ANALYSIS FUNCTIONS
-def save_and_get_data(records):
-    """Salva i dati su Firestore e li restituisce come DataFrame filtrato per 'Italy'."""
-    if not db:
-        raise ConnectionError("Connessione a Firestore non disponibile.")
+# --- FUNZIONE ENTSO-E AGGIORNATA ---
+def get_entsoe_generation_data(country_name, country_code, start_date, end_date):
     
-    yesterday_doc_id = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+    url = "https://web-api.tp.entsoe.eu/api"
+    params = {
+        'securityToken': config.ENTSOE_API_TOKEN,
+        'documentType': 'A75',
+        'processType': 'A16',
+        'in_Domain': country_code,
+        'periodStart': start_date, 'periodEnd': end_date
+    }
+    print(f"3. Download ENERGY MIX for {country_name}...")
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        
+        # Usiamo lxml per analizzare il testo della risposta
+        root = etree.fromstring(response.content)
+        
+        # Definiamo il namespace, che è come l'indirizzo ufficiale dei tag XML
+        ns = {'ns': 'urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0'}
+        
+        # Controlliamo se la risposta è un messaggio di errore
+        reason_node = root.find('.//ns:Reason', namespaces=ns)
+        if reason_node is not None:
+            reason_text = reason_node.find('.//ns:text', namespaces=ns).text
+            raise Exception(f"API returned an error: {reason_text}")
+
+        all_records = []
+        # Iteriamo su ogni "blocco" TimeSeries, che rappresenta una fonte energetica
+        for time_series in root.findall('.//ns:TimeSeries', namespaces=ns):
+            psr_type_node = time_series.find('.//ns:MktPSRType/ns:psrType', namespaces=ns)
+            if psr_type_node is None:
+                continue
+            
+            psr_type = psr_type_node.text
+            
+            # Per ogni fonte, iteriamo sui suoi "Point" (le misurazioni orarie)
+            for point in time_series.findall('.//ns:Point', namespaces=ns):
+                position = int(point.find('ns:position', namespaces=ns).text)
+                quantity = float(point.find('ns:quantity', namespaces=ns).text)
+                
+                all_records.append({
+                    'position': position,
+                    'quantity_MW': quantity,
+                    'psrType': psr_type
+                })
+        
+        if not all_records:
+            raise Exception("The XML document does not contain valid production data.")
+
+        print(f"Data for {country_name} downloaded!")
+        return all_records
+
+    except Exception as e:
+        print(f"Error downloading data for: {country_name}: {e}")
+        return []
+
     
-    doc_ref = db.collection('daily_load_archive').document(yesterday_doc_id)
-    doc_ref.set({'records': records})
-    print(f"✅ Dati archiviati su Firestore in 'daily_load_archive/{yesterday_doc_id}'")
-    
-    italy_data = [rec for rec in records if rec['bidding_zone'] == 'Italy']
-    if not italy_data:
-        raise ValueError("Nessun dato trovato per la zona 'Italy' nei dati scaricati.")
-    
-    df = pd.DataFrame(italy_data)
-    
-    # Convert the column to numeric type before using it.
+
+# --- DATABASE & ANALYSIS FUNCTIONS ---
+def save_data_to_firestore(collection, doc_id, data):
+    if not db: raise ConnectionError("Firestore not connected.")
+    if not data:
+        print(f"No data to save for {collection}/{doc_id}.")
+        return
+    doc_ref = db.collection(collection).document(doc_id)
+    doc_ref.set({'records': data, 'updated_at': firestore.SERVER_TIMESTAMP}, merge=True)
+    print(f"Data saved on Firestore in '{collection}/{doc_id}'")
+
+def run_italian_simulation(records):
+    df = pd.DataFrame([r for r in records if r['bidding_zone'] == 'Italy'])
+    if df.empty:
+        print("(!) No data for the 'Italy' zone was found for the simulation.")
+        return {}
     df['total_load_MW'] = pd.to_numeric(df['total_load_MW'])
-    
-    return df
-
-def run_simulation(df_load):
-    print("\n3. Inizio analisi e simulazione...")
-    total_mwh_giornaliero = df_load['total_load_MW'].sum() / 4
-    costo_totale_attuale = total_mwh_giornaliero * COSTO_MEDIO_PUN_ITALIA_EUR_MWh
-    mwh_da_nucleare = total_mwh_giornaliero * PERCENTUALE_NUCLEARE_NEL_MIX
-    mwh_da_altro = total_mwh_giornaliero * (1 - PERCENTUALE_NUCLEARE_NEL_MIX)
-    costo_nucleare = mwh_da_nucleare * COSTO_NUCLEARE_FRANCIA_EUR_MWh
-    costo_altro = mwh_da_altro * COSTO_MEDIO_PUN_ITALIA_EUR_MWh
-    costo_totale_simulato = costo_nucleare + costo_altro
-    risparmio_totale = costo_totale_attuale - costo_totale_simulato
-    risparmio_percentuale = (risparmio_totale / costo_totale_attuale) * 100
-    risparmio_annuale_stimato = risparmio_totale * 365
-    risparmio_annuale_famiglia = risparmio_annuale_stimato / 25_000_000
+    total_mwh = df['total_load_MW'].sum() / 4
+    costo_attuale = total_mwh * COSTO_MEDIO_PUN_ITALIA_EUR_MWh
+    costo_simulato = (total_mwh * PERCENTUALE_NUCLEARE_NEL_MIX * COSTO_NUCLEARE_FRANCIA_EUR_MWh) + \
+                     (total_mwh * (1 - PERCENTUALE_NUCLEARE_NEL_MIX) * COSTO_MEDIO_PUN_ITALIA_EUR_MWh)
+    risparmio_totale = costo_attuale - costo_simulato
     return {
         "data_analisi": (date.today() - timedelta(days=1)).strftime('%Y-%m-%d'),
-        "fabbisogno_mwh": total_mwh_giornaliero, "costo_attuale_eur": costo_totale_attuale,
-        "costo_simulato_eur": costo_totale_simulato, "risparmio_giornaliero_eur": risparmio_totale,
-        "risparmio_percentuale": risparmio_percentuale, "risparmio_annuale_italia_eur": risparmio_annuale_stimato,
-        "risparmio_annuale_famiglia_eur": risparmio_annuale_famiglia
+        "fabbisogno_mwh": total_mwh, "costo_attuale_eur": costo_attuale,
+        "costo_simulato_eur": costo_simulato, "risparmio_giornaliero_eur": risparmio_totale,
+        "risparmio_percentuale": (risparmio_totale / costo_attuale) * 100 if costo_attuale > 0 else 0,
+        "risparmio_annuale_italia_eur": risparmio_totale * 365,
+        "risparmio_annuale_famiglia_eur": (risparmio_totale * 365) / 25_000_000
     }
 
-def save_results_to_firestore(results):
-    """Salva il dizionario dei risultati finali in un'apposita collezione su Firestore."""
-    if not db:
-        raise ConnectionError("Connessione a Firestore non disponibile.")
-    
-    # Use the 'latest' as a fixed ID to always have the latest result available
-    doc_ref = db.collection('simulation_results').document('latest')
-    doc_ref.set(results)
-    print("✅ Risultati della simulazione salvati su Firestore in 'simulation_results/latest'")
-
 def print_report(results):
-    print("\n--- 📊 REPORT SIMULAZIONE NUCLEARE ---")
-    print(f"Data di riferimento: {results['data_analisi']}")
-    print("-" * 40)
-    print(f"Fabbisogno energetico totale: {results['fabbisogno_mwh']:,.0f} MWh")
-    print(f"Costo stimato attuale:         € {results['costo_attuale_eur']:,.2f}")
-    print(f"Costo simulato con nucleare:    € {results['costo_simulato_eur']:,.2f}")
-    print("-" * 40)
-    print(f"💰 Risparmio giornaliero: € {results['risparmio_giornaliero_eur']:,.2f} ({results['risparmio_percentuale']:.2f}%)")
-    print("\n--- 📈 PROIEZIONE ANNUALE ---")
-    print(f"🇮🇹 Risparmio annuale stimato per l'Italia: € {results['risparmio_annuale_italia_eur']/1_000_000_000:.2f} miliardi")
-    print(f"👨‍👩‍👧‍👦 Risparmio annuale stimato per famiglia:  € {results['risparmio_annuale_famiglia_eur']:.2f}")
-    print("-" * 40)
+    if not results: return
+    print("\n--- NUCLEAR SIMULATION REPORT ITALY ---")
+    print(f"Estimated annual savings for Italy: € {results.get('risparmio_annuale_italia_eur', 0)/1_000_000_000:.2f} billions")
+    print(f"Estimated annual savings per family:  € {results.get('risparmio_annuale_famiglia_eur', 0):.2f}")
+    print("-" * 45)
 
-# EXECUTION
+# MAIN EXECUTION
 if __name__ == "__main__":
-    if not db:
-        exit()
+    if not db: exit()
     try:
-        token = get_access_token(config.CLIENT_ID, config.CLIENT_SECRET)
-        total_load_records = get_total_load_for_yesterday(token)
-        df_carico_italia = save_and_get_data(total_load_records)
-        risultati = run_simulation(df_carico_italia)
+        # ITALY DATA
+        terna_token = get_access_token(config.CLIENT_ID, config.CLIENT_SECRET)
+        time.sleep(1)
+        load_data_it = get_terna_data_for_yesterday(terna_token)
+        yesterday_id = (date.today() - timedelta(days=1)).strftime('%Y-%m-%d')
+        save_data_to_firestore('daily_load_italy', yesterday_id, load_data_it)
         
-        # Save results to Firestore before printing the report
-        save_results_to_firestore(risultati)
+        # EU DATA
+        target_date = date.today() - timedelta(days=2)
+        target_date_id = target_date.strftime('%Y-%m-%d')
+        start_str = target_date.strftime('%Y%m%d0000')
+        end_str = (target_date + timedelta(days=1)).strftime('%Y%m%d0000')
         
-        print_report(risultati)
+        # FRANCE
+        generation_data_fr = get_entsoe_generation_data('France', '10YFR-RTE------C', start_str, end_str)
+        save_data_to_firestore('daily_generation_france', target_date_id, generation_data_fr)
         
+        # SPAIN 
+        generation_data_es = get_entsoe_generation_data('Spain', '10YES-REE------0', start_str, end_str)
+        save_data_to_firestore('daily_generation_spain', target_date_id, generation_data_es)
+
+        # ANALYSIS & REPORT (CORRECTED)
+        print("\n4. Running simulation analyses for Italy...")
+        risultati_simulazione = run_italian_simulation(load_data_it)
+
+        # Always save the result to Firestore to reflect the latest run
+        save_data_to_firestore('simulation_results', 'latest_italy', risultati_simulazione)
+
+        # Only print the report if there are results to show
+        if risultati_simulazione:
+            print_report(risultati_simulazione)
+
     except Exception as e:
-        print(f"\n❌ ERRORE durante l'esecuzione: {e}")
+        print(f"\nERROR while running: {e}")
