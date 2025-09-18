@@ -1,12 +1,17 @@
-name: Daily Energy Analysis
+name: Daily Energy Analysis and Deploy
 
 on:
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
-  run-analysis:
+  run-analysis-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Repo Checkout
@@ -22,18 +27,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Analysis script execution
+      - name: Create config files from secrets
         env:
           TERNA_CLIENT_ID: ${{ secrets.TERNA_CLIENT_ID }}
           TERNA_CLIENT_SECRET: ${{ secrets.TERNA_CLIENT_SECRET }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }} # <-- NUOVO SECRET
+          ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
+          FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
-          # Create config files
+          # File per lo script Python
           echo "CLIENT_ID = '${TERNA_CLIENT_ID}'" > config.py
           echo "CLIENT_SECRET = '${TERNA_CLIENT_SECRET}'" >> config.py
-          echo "ENTSOE_API_TOKEN = '${ENTSOE_API_TOKEN}'" >> config.py # <-- NUOVA RIGA
+          echo "ENTSOE_API_TOKEN = '${ENTSOE_API_TOKEN}'" >> config.py
           echo '${FIREBASE_SERVICE_ACCOUNT}' > serviceAccountKey.json
-          
-          # Execute the script
-          python3 nuclear_analyzer.py
+          echo '${FIREBASE_CONFIG_JSON}' > public/firebase_config.json
+
+      - name: Execute analysis script
+        run: python3 nuclear_analyzer.py
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

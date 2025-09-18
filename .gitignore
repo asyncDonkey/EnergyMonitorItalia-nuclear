@@ -209,3 +209,4 @@ __marimo__/
 # Personal config file
 config.py
 serviceAccountKey.json
+public/firebase_config.json

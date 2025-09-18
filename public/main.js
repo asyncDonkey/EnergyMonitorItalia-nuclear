@@ -1,21 +1,21 @@
 // public/main.js
 
-// Firebase Configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBBK5PFeHWTblD81Uz56MO8kFp4m_8_ZZQ",
-    authDomain: "energymonitoritalia.firebaseapp.com",
-    projectId: "energymonitoritalia",
-    storageBucket: "energymonitoritalia.appspot.com",
-    messagingSenderId: "35063954482",
-    appId: "1:35063954482:web:c1fdfa3015bc340c70102b"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
 document.addEventListener("DOMContentLoaded", async () => {
     try {
+        // 1. Carica la configurazione dal file JSON
+        const response = await fetch('public/firebase_config.json');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const firebaseConfig = await response.json();
+
+        // 2. Inizializza Firebase con la configurazione caricata
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        
+        // 3. Il resto del tuo codice che usa 'db' continua da qui
         const simDoc = await db.collection('simulation_results').doc('latest_italy').get();
         if (simDoc.exists) {
             const data = simDoc.data();
