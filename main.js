@@ -3,11 +3,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     try {
         // Load configuration from external JSON file
-        const response = await fetch('firebase_config.json');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const firebaseConfig = await response.json();
+        const firebaseConfig = __FIREBASE_CONFIG__;
 
         // Init Firebase with the loaded config
         if (!firebase.apps.length) {

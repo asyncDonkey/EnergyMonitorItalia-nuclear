@@ -210,3 +210,4 @@ __marimo__/
 config.py
 serviceAccountKey.json
 firebase_config.json
+public/config.js
