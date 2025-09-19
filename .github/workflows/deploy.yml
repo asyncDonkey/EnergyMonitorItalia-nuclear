@@ -23,7 +23,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create Firebase Config from Secret
+        env:
+          FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
+          mkdir -p public
           echo "const firebaseConfig = ${{ secrets.FIREBASE_CONFIG_JSON }};" > public/config.js
 
       - name: Setup Pages
