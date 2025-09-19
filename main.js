@@ -2,9 +2,6 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // Load configuration from external JSON file
-        const firebaseConfig = __FIREBASE_CONFIG__;
-
         // Init Firebase with the loaded config
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
