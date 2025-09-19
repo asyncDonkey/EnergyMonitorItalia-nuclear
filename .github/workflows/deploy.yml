@@ -26,8 +26,7 @@ jobs:
         env:
           FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
-          mkdir -p public
-          echo "const firebaseConfig = ${{ secrets.FIREBASE_CONFIG_JSON }};" > public/config.js
+          echo "const firebaseConfig = ${{ secrets.FIREBASE_CONFIG_JSON }};" > config.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
