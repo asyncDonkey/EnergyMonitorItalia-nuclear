@@ -2,20 +2,20 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // 1. Carica la configurazione dal file JSON
-        const response = await fetch('public/firebase_config.json');
+        // Load configuration from external JSON file
+        const response = await fetch('firebase_config.json');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
         const firebaseConfig = await response.json();
 
-        // 2. Inizializza Firebase con la configurazione caricata
+        // Init Firebase with the loaded config
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
         
-        // 3. Il resto del tuo codice che usa 'db' continua da qui
+        // DB queries
         const simDoc = await db.collection('simulation_results').doc('latest_italy').get();
         if (simDoc.exists) {
             const data = simDoc.data();
