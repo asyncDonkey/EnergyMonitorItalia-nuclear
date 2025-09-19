@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write 
 
 jobs:
   run-analysis-and-deploy:
@@ -16,7 +17,15 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
+      - name: Clean up previous artifacts
+        uses: c-hive/gha-remove-artifacts@v1
+        with:
+          name: github-pages
+          
+          fail-if-no-artifacts-found: false
+
       - name: Repo Checkout
         uses: actions/checkout@v4
 
@@ -38,12 +47,13 @@ jobs:
           ENTSOE_API_TOKEN: ${{ secrets.ENTSOE_API_TOKEN }}
           FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
         run: |
-          # File per lo script Python
           echo "CLIENT_ID = '${TERNA_CLIENT_ID}'" > config.py
           echo "CLIENT_SECRET = '${TERNA_CLIENT_SECRET}'" >> config.py
           echo "ENTSOE_API_TOKEN = '${ENTSOE_API_TOKEN}'" >> config.py
-          echo '${FIREBASE_SERVICE_ACCOUNT}' > serviceAccountKey.json
-          echo '${FIREBASE_CONFIG_JSON}' > public/firebase_config.json
+          
+          
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > serviceAccountKey.json
+          echo "${{ secrets.FIREBASE_CONFIG_JSON }}" > firebase_config.json
 
       - name: Execute analysis script
         run: python3 nuclear_analyzer.py
