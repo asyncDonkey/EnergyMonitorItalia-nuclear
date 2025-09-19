@@ -9,23 +9,16 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  actions: write 
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  run-analysis-and-deploy:
+  
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Clean up previous artifacts
-        uses: c-hive/gha-remove-artifacts@v1
-        with:
-          name: github-pages
-          
-          fail-if-no-artifacts-found: false
-
       - name: Repo Checkout
         uses: actions/checkout@v4
 
@@ -50,8 +43,6 @@ jobs:
           echo "CLIENT_ID = '${TERNA_CLIENT_ID}'" > config.py
           echo "CLIENT_SECRET = '${TERNA_CLIENT_SECRET}'" >> config.py
           echo "ENTSOE_API_TOKEN = '${ENTSOE_API_TOKEN}'" >> config.py
-          
-          
           echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > serviceAccountKey.json
           echo "${{ secrets.FIREBASE_CONFIG_JSON }}" > firebase_config.json
 
@@ -63,9 +54,24 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        with:
+        with:          
           path: '.'
 
+  deploy:
+    
+    needs: build
+       
+    permissions:
+      pages: write
+      id-token: write
+      
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        
